@@ -1,79 +1,57 @@
 use std::sync::Arc;
 
-use tokio::sync::Mutex;
+pub use tokio::sync::oneshot::Sender as OneshotSender;
 
-use crate::context::Context;
-use crate::engine::{Engine, TReceiver};
-use crate::opts::DefaultOpts;
-use crate::pid::{Pid, State};
-use crate::types::{AppMessage, DefaultMessage};
+use crate::types::State;
 
-pub struct Envelope<Message>{
-    pub msg: AppMessage<Message>,
-    pub sender: Arc<Mutex<Pid>>,
-}
-
-pub struct Processor<Message>
+pub trait Processor<M>: Sized
+    where
+        M: Message,
 {
-    pub pid: Arc<Mutex<Pid>>,
-    pub ctx: Arc<Mutex<Context<Message>>>,
-    pub opts: DefaultOpts,
-    pub m_buffer: Option<Arc<Mutex<Vec<Envelope<Message>>>>>,
+    type Result: MessageResponse<Self, M>;
+    type Context: ProcessCtx<M>;
+
+    fn process(&self, msg: M, ctx: Self::Context) -> Self::Result;
 }
 
-impl<Message> Processor<Message>
+
+pub trait DownStream<M1, M2>
+    where
+        Self: Processor<M1, Result=M2>,
+        M2: Message,
+        M1: Message
 {
-    pub fn new(engine: Arc<Mutex<Engine<Message>>>, opts: DefaultOpts) -> Self {
-        let pid = Arc::new(Mutex::new(
-            Pid::new(opts.name.as_str())
-        ));
-        Self {
-            pid,
-            ctx: Arc::new(Mutex::new(Context::new(engine, pid.clone()))),
-            opts,
-            m_buffer: None,
-        }
-    }
-
-    pub async fn start(self: Arc<Self>) {
-        let recv_maker = Arc::clone(&self.opts.p);
-        let recv = recv_maker();
-
-        let mut ctx = self.ctx.lock().await;
-        ctx.receiver = Some(recv);
-
-        let mut pid = self.pid.lock().await;
-        pid.state = State::Initialized;
-
-        pid.state = State::Started;
-        let engine = ctx.engine.clone();
-        let mut e = engine.lock().await;
-        let mut event_stream = e.event_stream.lock().await;
-        event_stream.publish(AppMessage::Default(DefaultMessage::ActivationEvent(self.pid.clone()))).await;
-
-        if let Some(m_buffer) = &self.m_buffer {
-            let mut buf = m_buffer.lock().await;
-            if !buf.is_empty() {
-                self.invoke(buf.clone()).await;
-                buf.clear();
-            }
-        }
-    }
-
-    async fn invoke(self: Arc<Self <>>, msgs: Vec<Envelope<Message>>) {
-        let mut nproc = 0;
-        for msg in msgs {
-            nproc += 1;
-            let mut ctx = self.ctx.lock().await;
-            let mut message = ctx.message.lock().await;
-            message = msg.msg;
-            ctx.sender = Some(self.pid.clone());
-            if let Some(r) = &ctx.receiver {
-                r.receive(&*ctx)
-            }
-        }
-    }
-
-    async fn cleanup() {}
+    fn spawn(&mut self, p2: impl Processor<M2>);
 }
 
+
+pub trait Message {
+    type Result: 'static;
+}
+
+impl<M> Message for Arc<M>
+    where M: Message
+{
+    type Result = M::Result;
+}
+
+
+pub trait MessageResponse<P, M>
+    where M: Message, P: Processor<M>
+{
+    fn process(self, ctx: &mut P::Context, tx: Option<OneshotSender<M::Result>>);
+}
+
+
+pub trait ProcessCtx<M>
+    where Self: Processor<M>,
+          M: Message
+{
+    // current processor execution state
+    fn state(&self) -> State;
+
+    fn stop(&mut self);
+
+    // look up next processor
+    fn downstream<M1>(&self) -> Option<Box<dyn Processor<M1, Result=(), Context=()>>> where M1: Message;
+}
