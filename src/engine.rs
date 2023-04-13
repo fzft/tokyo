@@ -1,7 +1,5 @@
 // producer - event >   buffer - > consumer(worker)
 
-use crate::pid::Pid;
-use crate::process::Processor;
 use crate::types::State;
 
 pub trait Engine: 'static {

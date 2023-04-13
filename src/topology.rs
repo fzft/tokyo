@@ -1,13 +1,13 @@
 use crate::engine::Engine;
 use crate::mailbox::Mailbox;
-use crate::process::{Message, Processor};
+use crate::actor::{Message, Actor};
 
 // stand alone tp is only one processor
 pub trait StandAloneTopology
     where
         Self: Engine
 {
-    fn spawn<M: Message>(&mut self, p: impl Processor<M>, ctx: Self::Context);
+    fn spawn<M: Message>(&mut self, p: impl Actor<M>, ctx: Self::Context);
 }
 
 
@@ -15,7 +15,7 @@ pub trait StandAloneTopology
 // tp will validate the tp
 pub trait ChainTopology where Self: Engine
 {
-    fn spawn<M: Message>(&mut self, p: impl Processor<M> + Mailbox<M>) -> Result<(), String>;
+    fn spawn<M: Message>(&mut self, p: impl Actor<M> + Mailbox<M>) -> Result<(), String>;
 }
 
 
@@ -23,6 +23,6 @@ pub trait ChainTopology where Self: Engine
 // tp will validate the tp, use strong connect to check whether cyclic
 pub trait DAGTopology where Self: Engine {
 
-    fn spawn<M: Message>(&mut self, p: impl Processor<M> + Mailbox<M>) -> Result<(), String>;
+    fn spawn<M: Message>(&mut self, p: impl Actor<M> + Mailbox<M>) -> Result<(), String>;
 }
 

@@ -1,6 +1,6 @@
 mod engine;
 mod pid;
-mod process;
+mod actor;
 mod types;
 mod topology;
 mod mailbox;

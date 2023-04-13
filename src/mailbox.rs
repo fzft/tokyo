@@ -1,6 +1,6 @@
-use crate::process::{Message, Processor};
+use crate::actor::{Message, Actor};
 
 // mailbox handle the inbound message to engine
-pub trait Mailbox<M> where Self: Processor<M>, M: Message {
+pub trait Mailbox<M> where Self: Actor<M>, M: Message {
 
 }

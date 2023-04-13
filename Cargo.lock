@@ -272,6 +272,7 @@ dependencies = [
 name = "tokyo"
 version = "0.1.0"
 dependencies = [
+ "parking_lot",
  "quote",
  "syn 1.0.109",
  "tokio",

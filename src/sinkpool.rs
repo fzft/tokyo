@@ -1,3 +1,3 @@
-use crate::process::Processor;
+use crate::actor::{Actor, Message};
 
-pub trait SinkPool<M> where Self: Processor<M> {}
+pub trait SinkPool<M> where Self: Actor<M>, M: Message {}
