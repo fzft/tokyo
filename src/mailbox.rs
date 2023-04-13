@@ -1,6 +1,20 @@
-use crate::actor::{Message, Actor};
+use crate::actor::Message;
+use crate::ringbuffer::LockFreeRingBuffer;
+
+const BUFFER_SIZE: usize = 1024;
+
 
 // mailbox handle the inbound message to engine
-pub trait Mailbox<M> where Self: Actor<M>, M: Message {
+pub struct Mailbox<M> where M: Message {
+    rb: LockFreeRingBuffer<M>,
+}
 
+impl<M> Mailbox<M>
+    where M: Message
+{
+    pub fn new() -> Self {
+        Self {
+            rb: LockFreeRingBuffer::new(BUFFER_SIZE)
+        }
+    }
 }
